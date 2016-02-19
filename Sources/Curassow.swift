@@ -81,6 +81,13 @@ class MultiOption<T : ArgumentConvertible> : ArgumentDescriptor {
 }
 
 
+struct ServeError : ErrorType, CustomStringConvertible {
+  var description: String {
+    return "The dispatch worker is only supported on OS X"
+  }
+}
+
+
 @noreturn public func serve(closure: RequestType -> ResponseType) {
   command(
     Option("worker-type", "syncronous"),
@@ -93,6 +100,13 @@ class MultiOption<T : ArgumentConvertible> : ArgumentDescriptor {
     if workerType == "synchronous" || workerType == "sync" {
       let arbiter = Arbiter<SynchronousWorker>(configuration: configuration, workers: workers, application: closure)
       try arbiter.run()
+    } else if workerType == "dispatch" || workerType == "gcd" {
+#if os(OSX)
+      let arbiter = Arbiter<DispatchWorker>(configuration: configuration, workers: workers, application: closure)
+      try arbiter.run()
+#else
+      throw ServeError()
+#endif
     } else {
       throw ArgumentError.InvalidType(value: workerType, type: "worker type", argument: "worker-type")
     }
